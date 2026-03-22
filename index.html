@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowState — Your Session Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2438;
+    --border: rgba(255,255,255,0.08);
+    --mint: #2dd4bf;
+    --mint-dim: rgba(45,212,191,0.15);
+    --mint-glow: rgba(45,212,191,0.3);
+    --amber: #fbbf24;
+    --rose: #fb7185;
+    --lavender: #a78bfa;
+    --text: #f0f4f8;
+    --text-muted: #8899aa;
+    --text-dim: #4a5568;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -30%;
+    left: -20%;
+    width: 70vw;
+    height: 70vh;
+    background: radial-gradient(ellipse, rgba(45,212,191,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%;
+    right: -10%;
+    width: 60vw;
+    height: 60vh;
+    background: radial-gradient(ellipse, rgba(167,139,250,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; position: relative; z-index: 1; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── NAV ── */
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--mint);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--text-muted); font-size: 13px; font-family: 'DM Sans', sans-serif; margin-left: 8px; font-style: italic; }
+  .nav-pill {
+    background: var(--mint-dim);
+    border: 1px solid var(--mint-glow);
+    color: var(--mint);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── INTAKE SCREEN ── */
+  #intake {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .intake-card {
+    width: 100%;
+    max-width: 560px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    animation: slideUp 0.5s ease both;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .intake-header { margin-bottom: 32px; }
+  .intake-header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .intake-header p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+  .field { margin-bottom: 24px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .field input, .field textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: none;
+  }
+  .field input:focus, .field textarea:focus {
+    border-color: var(--mint);
+    box-shadow: 0 0 0 3px var(--mint-dim);
+  }
+  .field textarea { min-height: 80px; }
+
+  /* Slider */
+  .slider-row {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .slider-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface2);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px var(--mint-glow);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  .slider-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--mint);
+    min-width: 36px;
+    text-align: center;
+  }
+
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    color: var(--text-muted);
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--mint); color: var(--text); }
+  .chip.selected {
+    background: var(--mint-dim);
+    border-color: var(--mint);
+    color: var(--mint);
+    font-weight: 600;
+  }
+
+  /* Duration pills */
+  .duration-pills { display: flex; gap: 8px; }
+  .dur-pill {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    color: var(--text-muted);
+    user-select: none;
+  }
+  .dur-pill:hover { border-color: var(--mint); color: var(--text); }
+  .dur-pill.selected {
+    background: var(--mint-dim);
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+  .dur-pill small { display: block; font-size: 10px; opacity: 0.7; margin-top: 2px; }
+
+  .btn-start {
+    width: 100%;
+    padding: 16px;
+    background: var(--mint);
+    color: #0a0e1a;
+    border: none;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .btn-start:hover {
+    background: #5eead4;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 30px rgba(45,212,191,0.35);
+  }
+  .btn-start:active { transform: translateY(0); }
+
+  /* ── SESSION SCREEN ── */
+  #session {
+    flex-direction: column;
+    padding: 0;
+  }
+  .session-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    flex: 1;
+  }
+  .session-main {
+    padding: 40px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .session-sidebar {
+    padding: 30px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 73px);
+  }
+
+  /* Timer block */
+  .timer-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .timer-block::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(45,212,191,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+  .phase-badge.work { background: var(--mint-dim); color: var(--mint); border: 1px solid var(--mint-glow); }
+  .phase-badge.break { background: rgba(251,191,36,0.15); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+  .phase-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .timer-display {
+    font-family: 'DM Serif Display', serif;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -3px;
+    margin: 8px 0;
+    color: var(--text);
+  }
+  .timer-display.break-time { color: var(--amber); }
+  .timer-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    font-style: italic;
+  }
+  .timer-controls { display: flex; gap: 12px; justify-content: center; }
+  .btn-ctrl {
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ctrl:hover { border-color: var(--mint); color: var(--mint); }
+  .btn-ctrl.primary {
+    background: var(--mint);
+    color: #0a0e1a;
+    border-color: var(--mint);
+  }
+  .btn-ctrl.primary:hover { background: #5eead4; }
+
+  /* Progress bar */
+  .progress-bar-wrap {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 4px;
+    margin-top: 20px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--mint);
+    transition: width 1s linear;
+  }
+  .progress-bar-fill.break-fill { background: var(--amber); }
+
+  /* Session plan */
+  .plan-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+  }
+  .plan-card h3 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+  .plan-blocks { display: flex; flex-direction: column; gap: 8px; }
+  .plan-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    transition: background 0.15s;
+  }
+  .plan-block.active { background: var(--mint-dim); }
+  .plan-block.done { opacity: 0.4; }
+  .block-icon { font-size: 16px; }
+  .block-info { flex: 1; }
+  .block-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .block-dur { font-size: 11px; color: var(--text-muted); }
+  .block-check { color: var(--mint); font-size: 14px; }
+
+  /* Sidebar */
+  .sidebar-section h3 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  /* Break card */
+  .break-card {
+    background: var(--surface);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .break-card-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .break-card-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: rgba(251,191,36,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .break-card h4 { font-size: 15px; font-weight: 600; }
+  .break-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+    margin-bottom: 8px;
+  }
+  .break-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .break-benefit {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(251,191,36,0.08);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--amber);
+    line-height: 1.5;
+  }
+
+  /* Stats */
+  .stat-row { display: flex; gap: 10px; }
+  .stat-pill {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    color: var(--mint);
+  }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── FEEDBACK SCREEN ── */
+  #feedback {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .feedback-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    animation: slideUp 0.4s ease both;
+  }
+  .feedback-card h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    margin-bottom: 8px;
+  }
+  .feedback-card > p { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; line-height: 1.6; }
+
+  .mood-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 24px; }
+  .mood-btn {
+    aspect-ratio: 1;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mood-btn:hover { transform: scale(1.1); border-color: var(--mint); }
+  .mood-btn.selected { border-color: var(--mint); background: var(--mint-dim); transform: scale(1.1); }
+
+  .mood-labels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text-dim);
+    margin-top: -16px; margin-bottom: 24px;
+  }
+
+  .feedback-field { margin-bottom: 20px; }
+  .feedback-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-btn {
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .tag-btn:hover { border-color: var(--lavender); color: var(--text); }
+  .tag-btn.selected { background: rgba(167,139,250,0.15); border-color: var(--lavender); color: var(--lavender); }
+
+  .insight-box {
+    background: rgba(45,212,191,0.06);
+    border: 1px solid var(--mint-glow);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: none;
+  }
+  .insight-box.visible { display: block; animation: slideUp 0.3s ease both; }
+  .insight-box .insight-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--mint);
+    margin-bottom: 6px;
+  }
+  .insight-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  .btn-row { display: flex; gap: 10px; }
+  .btn-secondary {
+    flex: 1;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--mint); color: var(--text); }
+  .btn-primary {
+    flex: 2;
+    padding: 14px;
+    background: var(--mint);
+    border: none;
+    border-radius: 12px;
+    color: #0a0e1a;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #5eead4; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(45,212,191,0.3); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .session-layout { grid-template-columns: 1fr; }
+    .session-sidebar { max-height: none; border-top: 1px solid var(--border); }
+    .session-main { padding: 24px 20px; }
+    .timer-display { font-size: 56px; }
+    .intake-card { padding: 28px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── SCREEN 1: INTAKE ── -->
+<div id="intake" class="screen active">
+  <nav>
+    <div class="logo">FlowState <span>session coach</span></div>
+    <div class="nav-pill">Beta</div>
+  </nav>
+  <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:40px 20px;">
+    <div class="intake-card">
+      <div class="intake-header">
+        <h1>Let's build your<br><em style="color:var(--mint)">session plan.</em></h1>
+        <p>Tell your coach what you're working on and how you're feeling — it'll design the right work intervals and breaks for your brain right now.</p>
+      </div>
+
+      <div class="field">
+        <label>What are you working on?</label>
+        <textarea id="taskInput" placeholder="e.g. Writing a research paper, studying for calculus exam, coding a feature..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Task type</label>
+        <div class="chips" id="taskTypeChips">
+          <div class="chip" data-val="deep">🧠 Deep focus</div>
+          <div class="chip" data-val="creative">✍️ Creative</div>
+          <div class="chip" data-val="reading">📖 Reading</div>
+          <div class="chip" data-val="problem">🔢 Problem solving</div>
+          <div class="chip" data-val="admin">📋 Admin / review</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Current energy level</label>
+        <div class="slider-row">
+          <input type="range" id="energySlider" min="1" max="10" value="6" oninput="document.getElementById('energyVal').textContent=this.value">
+          <div class="slider-val" id="energyVal">6</div>
+        </div>
+        <div class="slider-labels"><span>Drained 😴</span><span>Buzzing ⚡</span></div>
+      </div>
+
+      <div class="field">
+        <label>Current stress level</label>
+        <div class="slider-row">
+          <input type="range" id="stressSlider" min="1" max="10" value="4" oninput="document.getElementById('stressVal').textContent=this.value">
+          <div class="slider-val" id="stressVal">4</div>
+        </div>
+        <div class="slider-labels"><span>Calm 🌊</span><span>Overwhelmed 🔥</span></div>
+      </div>
+
+      <div class="field">
+        <label>How long do you have?</label>
+        <div class="duration-pills" id="durationPills">
+          <div class="dur-pill" data-val="30">30 min<small>1 block</small></div>
+          <div class="dur-pill selected" data-val="60">1 hour<small>2 blocks</small></div>
+          <div class="dur-pill" data-val="90">1.5 hr<small>3 blocks</small></div>
+          <div class="dur-pill" data-val="120">2 hr<small>4 blocks</small></div>
+        </div>
+      </div>
+
+      <button class="btn-start" onclick="startSession()">Build My Session →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 2: SESSION ── -->
+<div id="session" class="screen">
+  <nav>
+    <div class="logo">FlowState <span>session coach</span></div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div id="sessionBadge" style="font-size:13px;color:var(--text-muted);">Session in progress</div>
+      <button onclick="showFeedback()" class="btn-ctrl" style="padding:8px 16px;font-size:13px;">Check In</button>
+    </div>
+  </nav>
+  <div class="session-layout">
+    <div class="session-main">
+
+      <!-- Timer -->
+      <div class="timer-block">
+        <div id="phaseBadge" class="phase-badge work"><div class="dot"></div><span id="phaseLabel">Focus Block</span></div>
+        <div id="timerDisplay" class="timer-display">25:00</div>
+        <div id="timerSubtitle" class="timer-subtitle">Stay in the zone — your break is earned.</div>
+        <div class="timer-controls">
+          <button class="btn-ctrl primary" id="playPauseBtn" onclick="toggleTimer()">▶ Start</button>
+          <button class="btn-ctrl" onclick="skipPhase()">Skip →</button>
+          <button class="btn-ctrl" onclick="resetSession()">↺ Reset</button>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Session plan -->
+      <div class="plan-card">
+        <h3>Your Session Plan</h3>
+        <div class="plan-blocks" id="planBlocks"></div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stat-row">
+        <div class="stat-pill">
+          <div class="stat-val" id="blocksCompleted">0</div>
+          <div class="stat-lbl">Blocks done</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-val" id="focusMinutes">0</div>
+          <div class="stat-lbl">Focus min</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-val" id="breakCount">0</div>
+          <div class="stat-lbl">Breaks taken</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="session-sidebar">
+      <div class="sidebar-section">
+        <h3>Your Coach Says</h3>
+        <div id="coachMessage" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;">
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.6;" id="coachText">Loading your personalized session...</p>
+        </div>
+      </div>
+
+      <div class="sidebar-section" id="breakSection" style="display:none;">
+        <h3>Break Prescription</h3>
+        <div class="break-card">
+          <div class="break-card-header">
+            <div class="break-card-icon" id="breakIcon">🚶</div>
+            <div>
+              <div class="break-tag" id="breakType">Diffuse Thinking</div>
+              <h4 id="breakName">Mindful Walk</h4>
+            </div>
+          </div>
+          <p id="breakDesc">Step away from your screen. Walk slowly without a destination. Let your mind wander freely.</p>
+          <div class="break-benefit" id="breakBenefit">🧠 Activates your default mode network — the brain's background problem-solver.</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Session Profile</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="sessionProfile"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 3: FEEDBACK ── -->
+<div id="feedback" class="screen">
+  <nav>
+    <div class="logo">FlowState <span>check-in</span></div>
+    <div class="nav-pill">Block <span id="feedbackBlockNum">2</span> complete</div>
+  </nav>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+    <div class="feedback-card">
+      <h2>How are you feeling?</h2>
+      <p>Your honest answer shapes the next block — FlowState adapts in real time.</p>
+
+      <div class="mood-grid" id="moodGrid">
+        <button class="mood-btn" data-mood="1" onclick="selectMood(1)">😴</button>
+        <button class="mood-btn" data-mood="2" onclick="selectMood(2)">😕</button>
+        <button class="mood-btn" data-mood="3" onclick="selectMood(3)">😐</button>
+        <button class="mood-btn" data-mood="4" onclick="selectMood(4)">🙂</button>
+        <button class="mood-btn" data-mood="5" onclick="selectMood(5)">🔥</button>
+      </div>
+      <div class="mood-labels"><span>Exhausted</span><span>On fire</span></div>
+
+      <div class="feedback-field">
+        <label>What's affecting your focus?</label>
+        <div class="tag-row" id="tagRow">
+          <button class="tag-btn" onclick="toggleTag(this)">😰 High stress</button>
+          <button class="tag-btn" onclick="toggleTag(this)">😶 Mind wandering</button>
+          <button class="tag-btn" onclick="toggleTag(this)">💪 In the zone</button>
+          <button class="tag-btn" onclick="toggleTag(this)">😴 Getting tired</button>
+          <button class="tag-btn" onclick="toggleTag(this)">🙁 Stuck on task</button>
+          <button class="tag-btn" onclick="toggleTag(this)">✅ Good progress</button>
+        </div>
+      </div>
+
+      <div class="insight-box" id="insightBox">
+        <div class="insight-label">🧠 Coach Insight</div>
+        <p id="insightText"></p>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="goToSession()">← Back</button>
+        <button class="btn-primary" onclick="adaptSession()">Adapt My Next Block →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+const state = {
+  task: '', taskType: 'deep', energy: 6, stress: 4, duration: 60,
+  currentBlock: 0, timerRunning: false, timeLeft: 0, totalTime: 0,
+  interval: null, blocksCompleted: 0, focusMin: 0, breakCount: 0,
+  selectedMood: null, plan: []
+};
+
+// ── CHIP / PILL SELECTION ──
+document.querySelectorAll('#taskTypeChips .chip').forEach(c => {
+  c.onclick = () => { document.querySelectorAll('#taskTypeChips .chip').forEach(x=>x.classList.remove('selected')); c.classList.add('selected'); state.taskType = c.dataset.val; };
+});
+document.querySelectorAll('#durationPills .dur-pill').forEach(p => {
+  p.onclick = () => { document.querySelectorAll('#durationPills .dur-pill').forEach(x=>x.classList.remove('selected')); p.classList.add('selected'); state.duration = parseInt(p.dataset.val); };
+});
+
+// ── SESSION GENERATION ──
+function generatePlan(energy, stress, taskType, duration) {
+  const blocks = [];
+  const numBlocks = Math.floor(duration / 30);
+
+  // Adaptive work duration
+  let workDur = 25;
+  if (energy >= 8) workDur = 35;
+  else if (energy <= 3) workDur = 15;
+  else if (stress >= 7) workDur = 20;
+
+  // Break library
+  const breaks = {
+    diffuse: [
+      { name: 'Mindful Walk', icon: '🚶', type: 'Diffuse Thinking', desc: 'Walk slowly without a destination. Let your mind wander freely.', benefit: '🧠 Activates your default mode network — the brain\'s background problem-solver.' },
+      { name: 'Doodle Break', icon: '✏️', type: 'Diffuse Thinking', desc: 'Grab paper and draw anything — shapes, faces, patterns. No goal.', benefit: '🧠 Engages the right hemisphere and lets working memory consolidate.' }
+    ],
+    physio: [
+      { name: 'Box Breathing', icon: '🫁', type: 'Physiological Reset', desc: 'Inhale 4s → Hold 4s → Exhale 4s → Hold 4s. Repeat 4 times.', benefit: '💆 Lowers cortisol and resets your parasympathetic nervous system.' },
+      { name: 'Neck & Shoulder Roll', icon: '🤸', type: 'Physiological Reset', desc: 'Slow neck rolls, shoulder shrugs, and side stretches for 5 min.', benefit: '💪 Releases physical tension that builds during focused work.' }
+    ],
+    sensory: [
+      { name: '20-20-20 Eye Rest', icon: '👁️', type: 'Sensory Recovery', desc: 'Look at something 20 feet away for 20 seconds. Blink slowly.', benefit: '👁️ Prevents eye strain and reduces cognitive load from screen fatigue.' },
+      { name: 'Nature View', icon: '🌿', type: 'Sensory Recovery', desc: 'Look out a window at greenery or sky for 5 minutes. No phone.', benefit: '🌱 Attention Restoration Theory — nature replenishes directed attention.' }
+    ]
+  };
+
+  for (let i = 0; i < numBlocks; i++) {
+    blocks.push({ type: 'work', label: `Focus Block ${i+1}`, duration: workDur, icon: '🎯', status: i === 0 ? 'active' : 'upcoming' });
+    if (i < numBlocks - 1) {
+      let breakPool;
+      if (stress >= 7) breakPool = breaks.physio;
+      else if (i % 3 === 0) breakPool = breaks.diffuse;
+      else if (i % 3 === 1) breakPool = breaks.sensory;
+      else breakPool = breaks.physio;
+      const b = breakPool[i % 2];
+      blocks.push({ type: 'break', label: b.name, duration: 5, icon: b.icon, status: 'upcoming', breakData: b });
+    }
+  }
+  return blocks;
+}
+
+function startSession() {
+  state.task = document.getElementById('taskInput').value || 'Study session';
+  state.energy = parseInt(document.getElementById('energySlider').value);
+  state.stress = parseInt(document.getElementById('stressSlider').value);
+  state.plan = generatePlan(state.energy, state.stress, state.taskType, state.duration);
+  state.currentBlock = 0;
+  state.blocksCompleted = 0;
+  state.focusMin = 0;
+  state.breakCount = 0;
+
+  showScreen('session');
+  renderPlan();
+  loadBlock(0);
+  setCoachMessage();
+  renderProfile();
+}
+
+function renderPlan() {
+  const el = document.getElementById('planBlocks');
+  el.innerHTML = state.plan.map((b, i) => `
+    <div class="plan-block ${i === state.currentBlock ? 'active' : ''} ${i < state.currentBlock ? 'done' : ''}" id="planBlock${i}">
+      <div class="block-icon">${b.icon}</div>
+      <div class="block-info">
+        <div class="block-name">${b.label}</div>
+        <div class="block-dur">${b.duration} min ${b.type === 'break' ? '· ' + (b.breakData?.type || 'Break') : ''}</div>
+      </div>
+      ${i < state.currentBlock ? '<div class="block-check">✓</div>' : ''}
+    </div>
+  `).join('');
+}
+
+function loadBlock(idx) {
+  if (idx >= state.plan.length) { endSession(); return; }
+  const block = state.plan[idx];
+  state.timeLeft = block.duration * 60;
+  state.totalTime = block.duration * 60;
+  state.timerRunning = false;
+  clearInterval(state.interval);
+
+  document.getElementById('playPauseBtn').textContent = '▶ Start';
+  updateTimerDisplay();
+  updateProgressBar();
+
+  const badge = document.getElementById('phaseBadge');
+  const label = document.getElementById('phaseLabel');
+  const display = document.getElementById('timerDisplay');
+  const subtitle = document.getElementById('timerSubtitle');
+  const breakSection = document.getElementById('breakSection');
+
+  if (block.type === 'work') {
+    badge.className = 'phase-badge work';
+    label.textContent = 'Focus Block';
+    display.className = 'timer-display';
+    subtitle.textContent = 'Stay in the zone — your break is earned.';
+    breakSection.style.display = 'none';
+  } else {
+    badge.className = 'phase-badge break';
+    label.textContent = 'Break Time';
+    display.className = 'timer-display break-time';
+    subtitle.textContent = block.breakData?.type + ' — step away from the screen.';
+    showBreakCard(block.breakData);
+    breakSection.style.display = 'block';
+    state.breakCount++;
+    document.getElementById('breakCount').textContent = state.breakCount;
+  }
+
+  renderPlan();
+}
+
+function showBreakCard(bd) {
+  if (!bd) return;
+  document.getElementById('breakIcon').textContent = bd.icon;
+  document.getElementById('breakType').textContent = bd.type;
+  document.getElementById('breakName').textContent = bd.name;
+  document.getElementById('breakDesc').textContent = bd.desc;
+  document.getElementById('breakBenefit').textContent = bd.benefit;
+}
+
+function toggleTimer() {
+  if (state.timerRunning) {
+    clearInterval(state.interval);
+    state.timerRunning = false;
+    document.getElementById('playPauseBtn').textContent = '▶ Resume';
+  } else {
+    state.timerRunning = true;
+    document.getElementById('playPauseBtn').textContent = '⏸ Pause';
+    state.interval = setInterval(() => {
+      state.timeLeft--;
+      if (state.plan[state.currentBlock]?.type === 'work') state.focusMin = Math.round((state.totalTime - state.timeLeft) / 60);
+      document.getElementById('focusMinutes').textContent = state.focusMin + (state.currentBlock > 0 ? '+' : '');
+      updateTimerDisplay();
+      updateProgressBar();
+      if (state.timeLeft <= 0) {
+        clearInterval(state.interval);
+        state.timerRunning = false;
+        completeBlock();
+      }
+    }, 1000);
+  }
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(state.timeLeft / 60).toString().padStart(2,'0');
+  const s = (state.timeLeft % 60).toString().padStart(2,'0');
+  document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+}
+
+function updateProgressBar() {
+  const pct = ((state.totalTime - state.timeLeft) / state.totalTime) * 100;
+  const bar = document.getElementById('progressFill');
+  bar.style.width = pct + '%';
+  bar.className = 'progress-bar-fill' + (state.plan[state.currentBlock]?.type === 'break' ? ' break-fill' : '');
+}
+
+function completeBlock() {
+  if (state.plan[state.currentBlock]?.type === 'work') {
+    state.blocksCompleted++;
+    document.getElementById('blocksCompleted').textContent = state.blocksCompleted;
+  }
+  state.currentBlock++;
+  if (state.currentBlock < state.plan.length) {
+    // Show feedback after every work block
+    if (state.plan[state.currentBlock - 1]?.type === 'work') {
+      showFeedback();
+    } else {
+      loadBlock(state.currentBlock);
+    }
+  } else {
+    endSession();
+  }
+}
+
+function skipPhase() {
+  clearInterval(state.interval);
+  state.timerRunning = false;
+  completeBlock();
+}
+
+function endSession() {
+  document.getElementById('timerDisplay').textContent = '✓';
+  document.getElementById('phaseBadge').innerHTML = '<div class="dot"></div><span>Session Complete!</span>';
+  document.getElementById('phaseBadge').className = 'phase-badge work';
+  document.getElementById('timerSubtitle').textContent = `Great work! ${state.blocksCompleted} blocks completed.`;
+  document.getElementById('playPauseBtn').style.display = 'none';
+  setCoachMessage(true);
+}
+
+function resetSession() {
+  clearInterval(state.interval);
+  showScreen('intake');
+}
+
+function setCoachMessage(done = false) {
+  const msgs = {
+    high_stress: "Your stress is elevated — I've kept your focus blocks shorter (20 min) and added physiological resets so your nervous system can recover between sessions.",
+    low_energy: "Energy is low right now. I've shortened your blocks to 15 min and added diffuse thinking breaks — gentle recovery, not more grinding.",
+    high_energy: "You're firing on all cylinders! I've set 35-min deep focus blocks to ride that wave. I'll signal a proper diffuse break at the end.",
+    balanced: "Good baseline energy and moderate stress. I've set 25-min focus blocks with a mix of movement and sensory recovery breaks — the research-backed sweet spot.",
+    done: `Session complete 🎉 You focused for ${state.focusMin}+ minutes across ${state.blocksCompleted} blocks. Rest well — consolidation happens now.`
+  };
+  let msg;
+  if (done) msg = msgs.done;
+  else if (state.stress >= 7) msg = msgs.high_stress;
+  else if (state.energy <= 3) msg = msgs.low_energy;
+  else if (state.energy >= 8) msg = msgs.high_energy;
+  else msg = msgs.balanced;
+  document.getElementById('coachText').textContent = msg;
+}
+
+function renderProfile() {
+  const el = document.getElementById('sessionProfile');
+  const tags = [
+    { label: 'Task', val: state.task.length > 30 ? state.task.slice(0,30)+'…' : state.task },
+    { label: 'Energy', val: '⚡'.repeat(Math.ceil(state.energy/2)) },
+    { label: 'Stress', val: state.stress >= 7 ? '🔥 High' : state.stress >= 4 ? '😐 Medium' : '🌊 Low' },
+    { label: 'Duration', val: state.duration + ' min' }
+  ];
+  el.innerHTML = tags.map(t => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">${t.label}</span>
+      <span style="font-size:13px;font-weight:600;">${t.val}</span>
+    </div>
+  `).join('');
+}
+
+// ── FEEDBACK ──
+function showFeedback() {
+  document.getElementById('feedbackBlockNum').textContent = state.blocksCompleted;
+  state.selectedMood = null;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('insightBox').classList.remove('visible');
+  showScreen('feedback');
+}
+
+function selectMood(val) {
+  state.selectedMood = val;
+  document.querySelectorAll('.mood-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.mood) === val);
+  });
+  showInsight(val);
+}
+
+function showInsight(mood) {
+  const insights = {
+    1: "You're running on empty. I'll cut the next block to 15 min and prescribe a full physiological reset — your brain needs recovery fuel, not more effort.",
+    2: "Feeling a bit flat. I'll shorten the next block and swap in a movement break. A short walk can boost BDNF — your brain's natural focus chemical.",
+    3: "Holding steady. Next block stays the same — you're in maintenance mode, which is fine. Stay hydrated.",
+    4: "You're in a good groove. I'll keep the current pacing. If it keeps feeling this way, we can extend the next block slightly.",
+    5: "Full flow state! I'll extend your next focus block by 5 minutes to ride this. Don't break the momentum unless you have to."
+  };
+  document.getElementById('insightText').textContent = insights[mood];
+  document.getElementById('insightBox').classList.add('visible');
+}
+
+function toggleTag(el) { el.classList.toggle('selected'); }
+
+function adaptSession() {
+  // Adapt the next work block based on mood
+  if (state.selectedMood && state.currentBlock < state.plan.length) {
+    const nextWork = state.plan.slice(state.currentBlock).find(b => b.type === 'work');
+    if (nextWork) {
+      if (state.selectedMood <= 2) nextWork.duration = 15;
+      else if (state.selectedMood === 5) nextWork.duration = Math.min(nextWork.duration + 5, 40);
+    }
+  }
+  goToSession();
+}
+
+function goToSession() {
+  showScreen('session');
+  loadBlock(state.currentBlock);
+  renderPlan();
+}
+
+// ── SCREEN SWITCHING ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
